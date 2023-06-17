@@ -30,12 +30,30 @@ async function run() {
     const menuCollection = client.db('bistroDB').collection('menu');
     const reviewCollection = client.db('bistroDB').collection('reviews');
     const cartsCollection = client.db('bistroDB').collection('carts1');
+    const usersCollection = client.db('bistroDB').collection('users1');
 
+
+    // users related apis
+    app.post('/users', async(req, res) => {
+      const user = req.body;
+      // console.log(user);
+      const query = {email: user.email};
+      const existingUser = await usersCollection.findOne(query);
+      // console.log('existing user', existingUser)
+      if(existingUser){
+        return res.send({message: 'user already exists'})
+      }
+      const result = await usersCollection.insertOne(user);
+      res.send(result);
+    })
+
+    // menu related apis
     app.get('/menu', async(req, res) => {
         const result = await menuCollection.find().toArray();
         res.send(result);
     })
 
+    // review related apis
     app.get('/reviews', async(req, res) => {
         const result = await reviewCollection.find().toArray();
         res.send(result);
@@ -60,7 +78,7 @@ async function run() {
         res.send(result);
     })
 
-    app.delete('carts/:id', async(req, res) => {
+    app.delete('/carts/:id', async(req, res) => {
       const id = req.params.id;
       const query = {_id: new ObjectId(id)};
       const result = await cartsCollection.deleteOne(query);
