@@ -48,6 +48,7 @@ async function run() {
     const reviewCollection = client.db('bistroDB').collection('reviews');
     const cartsCollection = client.db('bistroDB').collection('carts1');
     const usersCollection = client.db('bistroDB').collection('users1');
+    const paymentCollection = client.db('bistroDB').collection('payments');
 
     app.post('/jwt', (req, res) => {
       const user = req.body;
@@ -177,7 +178,7 @@ async function run() {
     })
 
     // create payment intent
-    app.post('/create-payment-intent', async(req, res) => {
+    app.post('/create-payment-intent', verifyJWT, async(req, res) => {
       const {price} = req.body;
       const amount = price*100;
       const paymentIntent = await stripe.paymentIntents.create({
@@ -188,6 +189,33 @@ async function run() {
       res.send({
         clientSecret: paymentIntent.client_secret
       })
+    })
+
+    app.get('/admin-stats', verifyJWT, verifyAdmin, async(req, res) => {
+      const users = await usersCollection.estimatedDocumentCount();
+      const products = await menuCollection.estimatedDocumentCount();
+      const orders = await paymentCollection.estimatedDocumentCount();
+
+      // best way to get sum  of a field is to use group and sum operator
+      const payments = await paymentCollection.find().toArray();
+      const revenue = payments.reduce((sum, payment) => sum + payment.price ,0)
+      res.send({
+        users,
+        products,
+        orders,
+        revenue
+      })
+    })
+
+    // payment related api
+    app.post('/payments', verifyJWT, async(req, res) => {
+      const payment = req.body;
+      const insertResult = await paymentCollection.insertOne(payment);
+
+      const query = {_id: { $in: payment.cartItems.map(id => new ObjectId(id))}};
+      const deleteResult = await cartsCollection.deleteMany(query);
+
+      res.send(insertResult, deleteResult);
     })
 
     // Send a ping to confirm a successful connection
