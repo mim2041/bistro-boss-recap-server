@@ -207,6 +207,54 @@ async function run() {
       })
     })
 
+    /**
+     * second best solution
+     * 1. load all payments
+     * 2. for each payment get the menuItems array
+     * 3. for each item in the menuItems array, get the menuItem from the menuCollection
+     * 4. put them in an array: allOrderedItems
+     * 5. separate allOrdered items by category
+     * 6. now get the quantity by using length: pazzas.length
+     * 7. for each category use reduce to get the total amount spent on this category
+     * 
+     */
+    app.get('/order-stats', async(req, res) => {
+      const pipeline = [
+        {
+          $unwind: '$menuItems'
+        },
+        {
+          $lookup: {
+            from: 'menu',
+            localField: 'menuItems',
+            foreignField: '_id',
+            as: 'menuItemDetails'
+          }
+        },
+        {
+          $unwind: '$menuItemDetails'
+        },
+        {
+          $group: {
+            _id: '$menuItemDetails.category',
+            count: { $sum: 1 },
+            total: { $sum: '$menuItemDetails.price' }
+          }
+        },
+        {
+          $project: {
+            category: '$_id',
+            count: 1,
+            total: { $round: ['$total', 2] },
+            _id: 0
+          }
+        }
+      ];
+
+      const result = await paymentCollection.aggregate(pipeline).toArray();
+      res.send(result);
+    })
+
     // payment related api
     app.post('/payments', verifyJWT, async(req, res) => {
       const payment = req.body;
