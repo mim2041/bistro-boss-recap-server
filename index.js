@@ -180,7 +180,7 @@ async function run() {
     // create payment intent
     app.post('/create-payment-intent', verifyJWT, async(req, res) => {
       const {price} = req.body;
-      const amount = price*100;
+      const amount = parseInt(price*100);
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amount,
         currency: 'usd',
@@ -218,7 +218,7 @@ async function run() {
      * 7. for each category use reduce to get the total amount spent on this category
      * 
      */
-    app.get('/order-stats', async(req, res) => {
+    app.get('/order-stats',verifyJWT, verifyAdmin, async(req, res) => {
       const pipeline = [
         {
           $unwind: '$menuItems'
@@ -249,7 +249,7 @@ async function run() {
             _id: 0
           }
         }
-      ];
+      ]
 
       const result = await paymentCollection.aggregate(pipeline).toArray();
       res.send(result);
